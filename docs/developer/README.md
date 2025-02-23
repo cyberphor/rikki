@@ -1,54 +1,112 @@
 # `rikki`
 * [Environment Setup](#environment-setup)
-  * [Requirements](#requirements)
-  * [Instructions](#instructions)
+  * [Installing Software Needed on the Host Machine](#installing-software-needed-on-the-host-machine)
+  * [Configuring the Test Machine](#configuring-the-test-machine)
+  * [Configuring Windbg on the Host Machine](#configuring-windbg-on-the-host-machine)
+* [Development Workflow](#development-workflow)
+  * [Installing Your Kernel-Mode Driver](#installing-your-kernel-mode-driver)
+  * [Compiling Your Kernel-Mode Driver](#compiling-your-kernel-mode-driver)
 
 ## Environment Setup
-### Requirements
-* [Visual Studio (Community)](https://visualstudio.microsoft.com/thank-you-downloading-visual-studio/?sku=Community&rel=17)
-  * Desktop development with C++
-    * MSVC v143 - VS 2022 C++ x64/x86 Spectre-mitigated libs (Latest)
-    * C++ ATL and MFC for latest v143 build tools with Spectre Mitigations (x86 & x64)
-* [Windows 11 Software Development Kit (SDK)](https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/)
-* [Windows Driver Kit (WDK)](https://go.microsoft.com/fwlink/?linkid=2297653)
-* [DebugView](https://learn.microsoft.com/en-us/sysinternals/downloads/debugview)
+The following instructions describe how to setup your environment. Your environment will consist of a host machine and a test machine. 
 
-### Instructions
-**Step 1.** Open the `x64 Native Tools for Command Prompt for VS 2022` (this sets up the environment with the right compilers and paths).
+### Installing Software Needed on the Host Machine
+Follow the instructions below on your host machine.
 
-**Step 2.** Set the kernel include path so the compiler can locate necessary headers.
+**Step 1.** Install VMWare Workstation Pro and create a Windows 11 virtual machine. This virtual machine will be your "test machine."
+
+**Step 2.** Install Visual Studio.
+
+**Step 3.** Install the [Windows Driver Kit (WDK)](https://go.microsoft.com/fwlink/?linkid=2297653).
+
+**Step 4.** Install Windbg by opening `cmd.exe` and entering the command below.
+```bash
+winget install Microsoft.WinDbg
+```
+
+### Configuring the Test Machine
+**Step 1.** Open the `cmd.exe` as an administrator. 
+
+**Step 2.** Enter the command below to enable debugging on the test machine.
+```bash
+bcdedit /debug on
+```
+
+**Step 2.** Enter the command below to configure the test machine's debug settings. Replace `192.168.152.1` with the actual IP address of your host machine. 
+```bash
+bcdedit /dbgsettings net hostip:192.168.152.1 port:54321 key:1.2.3.4
+```
+
+**Step 3.** Enter the command below to reboot the test machine.
+```bash
+shutdown /r /t 000
+```
+
+**Step 4.** Disable "Driver Signature Enforcement." One way of doing this is describe below.
+* Search for and open "change advanced startup options." You should end-up in Settings under System > Recovery > Recovery options.
+* Click "Restart now."
+* Upon restart, click "Troubleshoot" and then "Advanced options."
+* Click "Startup Settings" and then "Restart"
+* Enter "7" to "disable driver signature enforcement"
+
+**Step 5.** Pause your test machine and then create a snapshot of it. I personally recommend adding the notes below to the description for reference.
+```
+* VMware Tools is installed
+* Debugging is enabled
+* Driver signature enforcement is disabled
+```
+
+**Step 6.** Unpause your test machine.
+
+### Configuring Windbg on the Host Machine
+**Step 1.** Open Windbg. 
+
+**Step 2.** Click "File > Attach to kernel."
+
+**Step 3.** Your test machine is already configured to send kernel debugging data to your host machine. Now, it's just a matter of configuring your host machine. Configure the "Net" tab to look like below. These settings will create a listener on UDP port 54321 to recieve connections from your test machine. 
+![WinDbg Host](windbg-host.png)
+
+**Step 4.** Wait a few seconds and your Windbg window should look like below. If it does not, click the "Command" button. For troubleshooting, (1) make sure your host machine is actually listening on UDP port 54321, (2) make sure you can send traffic from the test machine to your host machine, and (3) check if your test machine is still configured to send kernel debugging data to the right IP address.
+![WinDbg Host](windbg-host-2.png)
+
+## Development Workflow
+### Compiling Your Kernel-Mode Driver
+Follow the instructions below on your host machine to compile your kernel-mode driver.
+
+**Step 1.** Write or edit the source code of your kernel-mode driver. There is an example in this repository called [`rikki.c`](/rikki.c).
+
+**Step 2.** Open the `x64 Native Tools for Command Prompt for VS 2022`.
+
+**Step 3.** Set the "include" path so the compiler can find the headers it needs for your kernel-mode driver.
 ```powershell
 set INCLUDE=C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\km;%INCLUDE%
 ```
 
-**Step 3.** Compile the driver with the correct defines, entry point, and libraries.
+**Step 4.** Compile your kernel-mode driver with the correct defines, entry point, and libraries.
 ```powershell
 cl /D NDEBUG /D _KERNEL_MODE /D WINNT /D _AMD64_ /D WIN32_LEAN_AND_MEAN rikki.c /link /SUBSYSTEM:NATIVE /DRIVER /NODEFAULTLIB /ENTRY:DriverEntry /OUT:rikki.sys /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0\km\x64" ntoskrnl.lib
 ```
 
-**Step 4.** Open the `x64 Native Tools for Command Prompt for VS 2022` as an administrator and create the service entry.
+### Installing Your Kernel-Mode Driver
+Follow the instructions below on your test machine to install your kernel-mode driver.
+
+**Step 1.** Copy your kernel-mode driver (the file ending in `.sys`) to `C:\`.
+
+**Step 2.** Open the `cmd.exe` as an administrator. 
+
+**Step 3.** Create a service entry for your kernel-mode driver.
 ```bash
-sc create Rikki type= kernel binPath= "C:\Users\Victor\Desktop\rikki\rikki.sys"
+sc create rikki type= kernel binPath= "C:\rikki.sys"
 ```
 
-**Step 5.** Enable test signing mode so Windows can load unsigned drivers.
+**Step 4.** Load your driver into the kernel.
 ```bash
-bcdedit /set testsigning on
+sc start rikki
 ```
 
-**Step 6.** Start the driver to load it into the kernel.
+**Step 4.** Check the status of your kernel-mode driver.
 ```bash
-sc start Rikki
-```
-
-**Step 7.** Stop the driver when you no longer need it running.
-```bash
-sc stop Rikki
-```
-
-**Step 8.** Disable test signing mode after testing is complete (optional).
-```bash
-bcdedit /set testsigning off
+sc query rikki
 ```
 
 ## References
