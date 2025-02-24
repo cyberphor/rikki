@@ -4,8 +4,8 @@
   * [Configuring the Test Machine](#configuring-the-test-machine)
   * [Configuring Windbg on the Host Machine](#configuring-windbg-on-the-host-machine)
 * [Development Workflow](#development-workflow)
-  * [Installing Your Kernel-Mode Driver](#installing-your-kernel-mode-driver)
   * [Compiling Your Kernel-Mode Driver](#compiling-your-kernel-mode-driver)
+  * [Installing Your Kernel-Mode Driver](#installing-your-kernel-mode-driver)
 
 ## Environment Setup
 The following instructions describe how to setup your environment. Your environment will consist of a host machine and a test machine. 
