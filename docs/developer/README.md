@@ -75,16 +75,11 @@ Follow the instructions below on your host machine to compile your kernel-mode d
 
 **Step 1.** Write or edit the source code of your kernel-mode driver. There is an example in this repository called [`rikki.c`](/rikki.c).
 
-**Step 2.** Open the `x64 Native Tools for Command Prompt for VS 2022`.
+**Step 2.** Open your `Visual Studio Developer Command Prompt`.
 
-**Step 3.** Set the "include" path so the compiler can find the headers it needs for your kernel-mode driver.
+**Step 3.** Run the provided build batch file.
 ```powershell
-set INCLUDE=C:\Program Files (x86)\Windows Kits\10\Include\10.0.26100.0\km;%INCLUDE%
-```
-
-**Step 4.** Compile your kernel-mode driver with the correct defines, entry point, and libraries.
-```powershell
-cl /D NDEBUG /D _KERNEL_MODE /D WINNT /D _AMD64_ /D WIN32_LEAN_AND_MEAN rikki.c /link /SUBSYSTEM:NATIVE /DRIVER /NODEFAULTLIB /ENTRY:DriverEntry /OUT:rikki.sys /LIBPATH:"C:\Program Files (x86)\Windows Kits\10\Lib\10.0.26100.0\km\x64" ntoskrnl.lib
+build.bat
 ```
 
 ### Installing Your Kernel-Mode Driver
@@ -107,6 +102,11 @@ sc start rikki
 **Step 4.** Check the status of your kernel-mode driver.
 ```bash
 sc query rikki
+```
+
+**Step 5.** To see your debug print statements, enter the command below in Windbg's command tab.
+```bash
+!dbgprint
 ```
 
 ## References
